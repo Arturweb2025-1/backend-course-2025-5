@@ -27,7 +27,8 @@ const server = http.createServer(async (req, res) => {
   const filePath = path.join(options.cache, `${code}.jpg`);
 
   try {
-  if (req.method === 'GET') {
+  switch (req.method) {
+    case 'GET':
     try {
       const data = await fs.readFile(filePath);
       res.writeHead(200, { 'Content-Type': 'image/jpeg' });
@@ -36,14 +37,30 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('404: Image not found in cache');
     }
-  } else if (req.method === 'PUT'){
+    break;
+
+  case 'PUT': {
     const body = [];
       for await (const chunk of req) body.push(chunk);
       const buffer = Buffer.concat(body);
       await fs.writeFile(filePath, buffer);
       res.writeHead(201, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('201: Image cached');
-  } else {
+      break;
+  }
+
+  case 'DELETE':
+        try {
+          await fs.unlink(filePath);
+          res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+          res.end('200: Image removed');
+        } catch {
+          res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+          res.end('404: Image not found');
+        }
+        break;
+
+      default:
     res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('405: Method Not Allowed');
   }
