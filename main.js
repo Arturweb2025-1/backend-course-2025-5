@@ -1,7 +1,8 @@
 const { Command } = require('commander');
 const http = require('http');
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
+const fsSync = require('fs');
 
 const program = new Command();
 program
@@ -12,8 +13,8 @@ program
 program.parse(process.argv);
 const options = program.opts();
 
-if(!fs.existsSync(options.cache)){
-    fs.mkdirSync(options.cache, {recursive: true});
+if(!fsSync.existsSync(options.cache)){
+    fsSync.mkdirSync(options.cache, {recursive: true});
     console.log(`Cache folder created: ${options.cache}`); 
 }
 
@@ -25,18 +26,30 @@ const server = http.createServer(async (req, res) => {
   const code = req.url.slice(1);
   const filePath = path.join(options.cache, `${code}.jpg`);
 
+  try {
   if (req.method === 'GET') {
     try {
-      const data = await fs.promises.readFile(filePath);
+      const data = await fs.readFile(filePath);
       res.writeHead(200, { 'Content-Type': 'image/jpeg' });
       res.end(data);
     } catch {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('404: Image not found in cache');
     }
+  } else if (req.method === 'PUT'){
+    const body = [];
+      for await (const chunk of req) body.push(chunk);
+      const buffer = Buffer.concat(body);
+      await fs.writeFile(filePath, buffer);
+      res.writeHead(201, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('201: Image cached');
   } else {
     res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('405: Method Not Allowed');
+  }
+  } catch (err) {
+    res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('500: Server error — ' + err.message);
   }
 });
 server.listen(options.port, options.host, () => {
