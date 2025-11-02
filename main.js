@@ -21,9 +21,23 @@ if (!options.host || !options.port || !options.cache){
     console.error('Error: missing required parameters (--host, --port, --cache)')
     process.exit(1);
 }
-const server = http.createServer((req, res) => {
-    res.writeHead(200, {'Content-type': 'text/plain'});
-    res.end('Server is running')
+const server = http.createServer(async (req, res) => {
+  const code = req.url.slice(1);
+  const filePath = path.join(options.cache, `${code}.jpg`);
+
+  if (req.method === 'GET') {
+    try {
+      const data = await fs.promises.readFile(filePath);
+      res.writeHead(200, { 'Content-Type': 'image/jpeg' });
+      res.end(data);
+    } catch {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('404: Image not found in cache');
+    }
+  } else {
+    res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('405: Method Not Allowed');
+  }
 });
 server.listen(options.port, options.host, () => {
     console.log(`Server running: http://${options.host}:${options.port}/`);
