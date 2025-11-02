@@ -1,0 +1,5 @@
+curl -v http://localhost:3000/200
+curl -X PUT --data-binary "@mycat.jpg" http://localhost:3000/200
+curl -v http://localhost:3000/200 --output test.jpg
+curl -X DELETE http://localhost:3000/200
+curl -v -X POST http://localhost:3000/200
