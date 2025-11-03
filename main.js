@@ -3,11 +3,12 @@ const http = require('http');
 const fs = require('fs').promises;
 const path = require('path');
 const fsSync = require('fs');
+const superagent = require('superagent');
 
 const program = new Command();
 program
     .option('-h, --host <host>', 'server host (e.g. localhost)')
-    .option('-p, --port <number>', 'server port (e.g. 3000')
+    .option('-p, --port <number>', 'server port (e.g. 3000)')
     .option('-c, --cache <cacheDir>', 'cache directory path');
 
 program.parse(process.argv);
@@ -34,8 +35,27 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'image/jpeg' });
       res.end(data);
     } catch {
+      console.log(`Image not found in cache. Downloading from https://http.cat/${code}...`);
+      try {
+        const response = await superagent
+        .get(`https://http.cat/${code}`)
+        .buffer(true);
+
+        if (!response.headers['content-type'].startsWith('image/')) {
+          throw new Error('Response is not an image');
+        }
+
+        const buffer = Buffer.from(response.body);
+        await fs.writeFile(filePath, buffer);
+        console.log(`Image ${code} saved to cache.`);
+
+        res.writeHead(200, { 'Content-Type': 'image/jpeg' });
+        res.end(buffer);
+      } catch (err) {
+        console.error('Error fetching image:', err.message);
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('404: Image not found in cache');
+      res.end('404: Image not found on http.cat');
+      }
     }
     break;
 
